@@ -114,7 +114,7 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="/assets/index-B2b3dgpX.js"></script>
+  <script type="module" crossorigin src="/assets/index-Bgms7iRn.js"></script>
 <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
 <body class="text-slate-800">
     <script>
@@ -140,28 +140,50 @@
                 }
               });
               
-              // Listen for beforeinstallprompt event
-              window.addEventListener('beforeinstallprompt', (e) => {
-                console.log('beforeinstallprompt event fired');
-                // Prevent the mini-infobar from appearing on mobile
-                e.preventDefault();
-                // Store the event so it can be triggered later
-                window.deferredPrompt = e;
-                // Dispatch custom event for our PWA install hook
-                window.dispatchEvent(new CustomEvent('beforeinstallprompt', { detail: e }));
-              });
-              
-              // Listen for app installed event
-              window.addEventListener('appinstalled', (e) => {
-                console.log('PWA was installed');
-                window.deferredPrompt = null;
-              });
             })
             .catch((registrationError) => {
               console.log('SW registration failed: ', registrationError);
             });
         });
+        
+        // Listen for beforeinstallprompt event (outside of service worker registration)
+        window.addEventListener('beforeinstallprompt', (e) => {
+          console.log('beforeinstallprompt event fired', e);
+          // Prevent the mini-infobar from appearing on mobile
+          e.preventDefault();
+          // Store the event so it can be triggered later
+          window.deferredPrompt = e;
+          console.log('Stored deferred prompt:', e);
+          // Dispatch custom event for our PWA install hook
+          window.dispatchEvent(new CustomEvent('beforeinstallprompt', { detail: e }));
+        });
+        
+        // Listen for app installed event
+        window.addEventListener('appinstalled', (e) => {
+          console.log('PWA was installed');
+          window.deferredPrompt = null;
+        });
+      } else {
+        console.log('Service Worker not supported');
       }
+      
+      // Additional PWA detection and fallback
+      window.addEventListener('load', () => {
+        // Check if app is already installed
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+          console.log('App is running in standalone mode');
+          return;
+        }
+        
+        // For browsers that don't support beforeinstallprompt
+        setTimeout(() => {
+          if (!window.deferredPrompt) {
+            console.log('No beforeinstallprompt event detected, checking for manual install options');
+            // Dispatch a custom event to show manual install instructions
+            window.dispatchEvent(new CustomEvent('manualInstallPrompt'));
+          }
+        }, 3000);
+      });
     </script>
     <div id="root"></div>
 </body>
