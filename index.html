@@ -114,75 +114,196 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="/assets/index-Bgms7iRn.js"></script>
+  <script type="module" crossorigin src="/assets/index--LjNlm30.js"></script>
 <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
 <body class="text-slate-800">
     <script>
-      // Register service worker
+      // Enhanced PWA Service Worker Registration
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js', {
-            scope: '/'
-          })
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-              
-              // Check for updates
-              registration.addEventListener('updatefound', () => {
-                const newWorker = registration.installing;
-                if (newWorker) {
-                  newWorker.addEventListener('statechange', () => {
-                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      // New content is available
-                      window.dispatchEvent(new Event('swUpdate'));
-                    }
-                  });
-                }
-              });
-              
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
+        let swRegistration = null;
+        let isUpdateAvailable = false;
+        
+        window.addEventListener('load', async () => {
+          try {
+            // Register service worker
+            swRegistration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/'
             });
+            
+            console.log('[PWA] Service Worker registered successfully:', swRegistration);
+            
+            // Store registration globally for PWA hook access
+            window.swRegistration = swRegistration;
+            
+            // Enhanced update detection
+            swRegistration.addEventListener('updatefound', () => {
+              console.log('[PWA] Service Worker update found');
+              const newWorker = swRegistration.installing;
+              
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  console.log('[PWA] New SW state:', newWorker.state);
+                  
+                  if (newWorker.state === 'installed') {
+                    if (navigator.serviceWorker.controller) {
+                      // New content is available, but old SW is still controlling
+                      console.log('[PWA] New content available, update ready');
+                      isUpdateAvailable = true;
+                      window.dispatchEvent(new CustomEvent('swUpdateAvailable', {
+                        detail: { registration: swRegistration, newWorker }
+                      }));
+                    } else {
+                      // First time installation
+                      console.log('[PWA] Content cached for offline use');
+                      window.dispatchEvent(new CustomEvent('swCached'));
+                    }
+                  }
+                  
+                  if (newWorker.state === 'activated') {
+                    console.log('[PWA] New service worker activated');
+                    window.dispatchEvent(new CustomEvent('swActivated'));
+                  }
+                });
+              }
+            });
+            
+            // Listen for messages from service worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+              console.log('[PWA] Message from SW:', event.data);
+              
+              switch (event.data.type) {
+                case 'SW_ACTIVATED':
+                  window.dispatchEvent(new CustomEvent('swActivated', {
+                    detail: event.data
+                  }));
+                  break;
+                case 'FORCE_RELOAD':
+                  window.location.reload();
+                  break;
+                default:
+                  console.log('[PWA] Unknown SW message:', event.data);
+              }
+            });
+            
+            // Check for existing update on page load
+            if (swRegistration.waiting) {
+              console.log('[PWA] Update available on page load');
+              isUpdateAvailable = true;
+              window.dispatchEvent(new CustomEvent('swUpdateAvailable', {
+                detail: { registration: swRegistration, newWorker: swRegistration.waiting }
+              }));
+            }
+            
+          } catch (error) {
+            console.error('[PWA] Service Worker registration failed:', error);
+          }
         });
         
-        // Listen for beforeinstallprompt event (outside of service worker registration)
+        // Enhanced beforeinstallprompt handling
         window.addEventListener('beforeinstallprompt', (e) => {
-          console.log('beforeinstallprompt event fired', e);
+          console.log('[PWA] beforeinstallprompt event fired');
+          
           // Prevent the mini-infobar from appearing on mobile
           e.preventDefault();
+          
           // Store the event so it can be triggered later
           window.deferredPrompt = e;
-          console.log('Stored deferred prompt:', e);
-          // Dispatch custom event for our PWA install hook
-          window.dispatchEvent(new CustomEvent('beforeinstallprompt', { detail: e }));
+          
+          // Dispatch enhanced custom event
+          window.dispatchEvent(new CustomEvent('pwaInstallPrompt', {
+            detail: {
+              prompt: e,
+              canInstall: true,
+              platform: navigator.platform,
+              userAgent: navigator.userAgent
+            }
+          }));
         });
         
-        // Listen for app installed event
+        // Enhanced app installed event
         window.addEventListener('appinstalled', (e) => {
-          console.log('PWA was installed');
+          console.log('[PWA] App was successfully installed');
+          
+          // Clear the deferred prompt
           window.deferredPrompt = null;
+          
+          // Dispatch custom event
+          window.dispatchEvent(new CustomEvent('pwaInstalled', {
+            detail: {
+              timestamp: Date.now(),
+              event: e
+            }
+          }));
         });
+        
+        // Global PWA utility functions
+        window.PWAUtils = {
+          // Check if app is installed
+          isInstalled: () => {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                   window.navigator.standalone === true;
+          },
+          
+          // Check if update is available
+          isUpdateAvailable: () => isUpdateAvailable,
+          
+          // Apply update
+          applyUpdate: () => {
+            if (swRegistration && swRegistration.waiting) {
+              swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              return true;
+            }
+            return false;
+          },
+          
+          // Force update
+          forceUpdate: () => {
+            if (swRegistration) {
+              swRegistration.active?.postMessage({ type: 'FORCE_UPDATE' });
+              return true;
+            }
+            return false;
+          },
+          
+          // Get SW registration
+          getRegistration: () => swRegistration
+        };
+        
       } else {
-        console.log('Service Worker not supported');
+        console.warn('[PWA] Service Worker not supported in this browser');
       }
       
-      // Additional PWA detection and fallback
+      // Enhanced PWA detection and fallback
       window.addEventListener('load', () => {
         // Check if app is already installed
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-          console.log('App is running in standalone mode');
+        if (window.PWAUtils?.isInstalled()) {
+          console.log('[PWA] App is running in standalone mode');
+          window.dispatchEvent(new CustomEvent('pwaRunningStandalone'));
           return;
         }
         
-        // For browsers that don't support beforeinstallprompt
+        // Delayed check for manual install options
         setTimeout(() => {
           if (!window.deferredPrompt) {
-            console.log('No beforeinstallprompt event detected, checking for manual install options');
-            // Dispatch a custom event to show manual install instructions
-            window.dispatchEvent(new CustomEvent('manualInstallPrompt'));
+            console.log('[PWA] No beforeinstallprompt detected, checking manual install options');
+            
+            // Detect browser and platform for manual instructions
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            const isChrome = /Chrome/.test(navigator.userAgent);
+            
+            window.dispatchEvent(new CustomEvent('pwaManualInstall', {
+              detail: {
+                isIOS,
+                isSafari,
+                isAndroid,
+                isChrome,
+                canShowInstructions: isIOS || (isAndroid && isChrome)
+              }
+            }));
           }
-        }, 3000);
+        }, 2000);
       });
     </script>
     <div id="root"></div>
