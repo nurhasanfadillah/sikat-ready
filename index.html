@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>SIKAT - Kas Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'bca-blue': '#0060AE',
+            }
+          }
+        }
+      }
+    </script>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="SIKAT">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="SIKAT">
+    <meta name="description" content="Sistem Informasi Keuangan Al-Hasaniyyah Terpusat">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0060AE">
+    <meta name="msapplication-TileColor" content="#0060AE">
+    <meta name="msapplication-tap-highlight" content="no">
+    
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="mask-icon" href="/masked-icon.svg" color="#0060AE">
+    <link rel="manifest" href="/manifest.webmanifest">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+      html {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overscroll-behavior-y: contain;
+        font-family: 'Inter', sans-serif;
+      }
+      body {
+        background-color: #f8fafc; /* slate-50 */
+      }
+      /* Custom Scrollbar for Webkit browsers */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1; /* slate-300 */
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8; /* slate-400 */
+      }
+      .animate-fade-in-down {
+        animation: fadeInDown 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+      }
+      @keyframes fadeInDown {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .custom-select-wrapper {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+      }
+      .custom-select-wrapper select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        padding-right: 2.5rem; /* Make space for arrow */
+      }
+      .custom-select-wrapper .custom-select-arrow {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        padding: 0 0.75rem;
+        pointer-events: none;
+      }
+    </style>
+
+
+<link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
+    "react/": "https://esm.sh/react@^19.1.1/",
+    "react": "https://esm.sh/react@^19.1.1",
+    "@google/genai": "https://esm.sh/@google/genai@^1.11.0",
+    "recharts": "https://esm.sh/recharts@^3.1.0",
+    "framer-motion": "https://esm.sh/framer-motion@^11.3.11",
+    "react-is": "https://esm.sh/react-is@^19.1.1",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.44.4"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index--LjNlm30.js"></script>
+<link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+<body class="text-slate-800">
+    <script>
+      // Enhanced PWA Service Worker Registration
+      if ('serviceWorker' in navigator) {
+        let swRegistration = null;
+        let isUpdateAvailable = false;
+        
+        window.addEventListener('load', async () => {
+          try {
+            // Register service worker
+            swRegistration = await navigator.serviceWorker.register('/sw.js', {
+              scope: '/'
+            });
+            
+            console.log('[PWA] Service Worker registered successfully:', swRegistration);
+            
+            // Store registration globally for PWA hook access
+            window.swRegistration = swRegistration;
+            
+            // Enhanced update detection
+            swRegistration.addEventListener('updatefound', () => {
+              console.log('[PWA] Service Worker update found');
+              const newWorker = swRegistration.installing;
+              
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  console.log('[PWA] New SW state:', newWorker.state);
+                  
+                  if (newWorker.state === 'installed') {
+                    if (navigator.serviceWorker.controller) {
+                      // New content is available, but old SW is still controlling
+                      console.log('[PWA] New content available, update ready');
+                      isUpdateAvailable = true;
+                      window.dispatchEvent(new CustomEvent('swUpdateAvailable', {
+                        detail: { registration: swRegistration, newWorker }
+                      }));
+                    } else {
+                      // First time installation
+                      console.log('[PWA] Content cached for offline use');
+                      window.dispatchEvent(new CustomEvent('swCached'));
+                    }
+                  }
+                  
+                  if (newWorker.state === 'activated') {
+                    console.log('[PWA] New service worker activated');
+                    window.dispatchEvent(new CustomEvent('swActivated'));
+                  }
+                });
+              }
+            });
+            
+            // Listen for messages from service worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+              console.log('[PWA] Message from SW:', event.data);
+              
+              switch (event.data.type) {
+                case 'SW_ACTIVATED':
+                  window.dispatchEvent(new CustomEvent('swActivated', {
+                    detail: event.data
+                  }));
+                  break;
+                case 'FORCE_RELOAD':
+                  window.location.reload();
+                  break;
+                default:
+                  console.log('[PWA] Unknown SW message:', event.data);
+              }
+            });
+            
+            // Check for existing update on page load
+            if (swRegistration.waiting) {
+              console.log('[PWA] Update available on page load');
+              isUpdateAvailable = true;
+              window.dispatchEvent(new CustomEvent('swUpdateAvailable', {
+                detail: { registration: swRegistration, newWorker: swRegistration.waiting }
+              }));
+            }
+            
+          } catch (error) {
+            console.error('[PWA] Service Worker registration failed:', error);
+          }
+        });
+        
+        // Enhanced beforeinstallprompt handling
+        window.addEventListener('beforeinstallprompt', (e) => {
+          console.log('[PWA] beforeinstallprompt event fired');
+          
+          // Prevent the mini-infobar from appearing on mobile
+          e.preventDefault();
+          
+          // Store the event so it can be triggered later
+          window.deferredPrompt = e;
+          
+          // Dispatch enhanced custom event
+          window.dispatchEvent(new CustomEvent('pwaInstallPrompt', {
+            detail: {
+              prompt: e,
+              canInstall: true,
+              platform: navigator.platform,
+              userAgent: navigator.userAgent
+            }
+          }));
+        });
+        
+        // Enhanced app installed event
+        window.addEventListener('appinstalled', (e) => {
+          console.log('[PWA] App was successfully installed');
+          
+          // Clear the deferred prompt
+          window.deferredPrompt = null;
+          
+          // Dispatch custom event
+          window.dispatchEvent(new CustomEvent('pwaInstalled', {
+            detail: {
+              timestamp: Date.now(),
+              event: e
+            }
+          }));
+        });
+        
+        // Global PWA utility functions
+        window.PWAUtils = {
+          // Check if app is installed
+          isInstalled: () => {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                   window.navigator.standalone === true;
+          },
+          
+          // Check if update is available
+          isUpdateAvailable: () => isUpdateAvailable,
+          
+          // Apply update
+          applyUpdate: () => {
+            if (swRegistration && swRegistration.waiting) {
+              swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              return true;
+            }
+            return false;
+          },
+          
+          // Force update
+          forceUpdate: () => {
+            if (swRegistration) {
+              swRegistration.active?.postMessage({ type: 'FORCE_UPDATE' });
+              return true;
+            }
+            return false;
+          },
+          
+          // Get SW registration
+          getRegistration: () => swRegistration
+        };
+        
+      } else {
+        console.warn('[PWA] Service Worker not supported in this browser');
+      }
+      
+      // Enhanced PWA detection and fallback
+      window.addEventListener('load', () => {
+        // Check if app is already installed
+        if (window.PWAUtils?.isInstalled()) {
+          console.log('[PWA] App is running in standalone mode');
+          window.dispatchEvent(new CustomEvent('pwaRunningStandalone'));
+          return;
+        }
+        
+        // Delayed check for manual install options
+        setTimeout(() => {
+          if (!window.deferredPrompt) {
+            console.log('[PWA] No beforeinstallprompt detected, checking manual install options');
+            
+            // Detect browser and platform for manual instructions
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            const isAndroid = /Android/.test(navigator.userAgent);
+            const isChrome = /Chrome/.test(navigator.userAgent);
+            
+            window.dispatchEvent(new CustomEvent('pwaManualInstall', {
+              detail: {
+                isIOS,
+                isSafari,
+                isAndroid,
+                isChrome,
+                canShowInstructions: isIOS || (isAndroid && isChrome)
+              }
+            }));
+          }
+        }, 2000);
+      });
+    </script>
+    <div id="root"></div>
+</body>
+</html>
